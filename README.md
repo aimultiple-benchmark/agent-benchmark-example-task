@@ -21,4 +21,5 @@ Agents are expected to complete the task in a one-shot setting without human int
 
 Full benchmark results and methodology:
 https://aimultiple.com/agentic-cli
+
 https://research.aimultiple.com/agentic-llm/
