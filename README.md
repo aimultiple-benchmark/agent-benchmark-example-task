@@ -1,8 +1,8 @@
 # Agent Benchmark – Example Task
 
-This repository contains an example task used in AIMultiple’s agentic CLI benchmarks.
+This repository contains an example task used in AIMultiple’s agentic benchmarks.
 
-The full task specification is available in `task.md`.
+The full task specification is available in `task-6-web.md`.
 
 ## Purpose
 
