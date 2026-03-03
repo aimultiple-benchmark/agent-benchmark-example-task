@@ -1,0 +1,174 @@
+steps:
+
+# --------------------------------
+# Infrastructure
+# --------------------------------
+
+- name: Health check
+  method: GET
+  path: /health
+  expect:
+    status: "200"
+
+# --------------------------------
+# Auth
+# --------------------------------
+
+- name: Login agent
+  method: POST
+  path: /login
+  body:
+    email: "agent@example.com"
+    password: "agent123"
+  expect:
+    status: "200"
+  save:
+    token_as: agent_token
+
+- name: Login customer
+  method: POST
+  path: /login
+  body:
+    email: "customer@example.com"
+    password: "customer123"
+  expect:
+    status: "200"
+  save:
+    token_as: customer_token
+
+# --------------------------------
+# Ticket Creation
+# --------------------------------
+
+- name: Customer creates ticket
+  method: POST
+  path: /tickets
+  auth: customer_token
+  body:
+    subject: "Smoke Test Issue"
+    description: "Something is not working"
+    priority: "high"
+  expect:
+    status: "200|201"
+  save:
+    json_as: created_ticket
+
+- name: Ticket in customer list
+  method: GET
+  path: /tickets
+  auth: customer_token
+  expect:
+    status: "200"
+
+- name: Ticket in agent list
+  method: GET
+  path: /tickets
+  auth: agent_token
+  expect:
+    status: "200"
+
+# --------------------------------
+# Assignment & Replies
+# --------------------------------
+
+- name: Agent assigns ticket to self
+  method: PUT
+  path: /tickets/$created_ticket.id/assign
+  auth: agent_token
+  body:
+    agent_id: "self"
+  expect:
+    status: "200"
+
+- name: Agent adds reply
+  method: POST
+  path: /tickets/$created_ticket.id/replies
+  auth: agent_token
+  body:
+    content: "Looking into this now"
+  expect:
+    status: "200|201"
+
+- name: Customer adds reply
+  method: POST
+  path: /tickets/$created_ticket.id/replies
+  auth: customer_token
+  body:
+    content: "Thank you for the quick response"
+  expect:
+    status: "200|201"
+
+- name: Get ticket detail with replies
+  method: GET
+  path: /tickets/$created_ticket.id
+  auth: agent_token
+  expect:
+    status: "200"
+    json_has:
+      - subject
+      - status
+      - replies
+
+# --------------------------------
+# Status Transitions
+# --------------------------------
+
+- name: Agent sets in_progress
+  method: PUT
+  path: /tickets/$created_ticket.id/status
+  auth: agent_token
+  body:
+    status: "in_progress"
+  expect:
+    status: "200"
+
+- name: Agent resolves ticket
+  method: PUT
+  path: /tickets/$created_ticket.id/status
+  auth: agent_token
+  body:
+    status: "resolved"
+  expect:
+    status: "200"
+
+- name: Customer reopens ticket
+  method: PUT
+  path: /tickets/$created_ticket.id/status
+  auth: customer_token
+  body:
+    status: "reopened"
+  expect:
+    status: "200"
+
+# --------------------------------
+# Invalid Transitions & Role Enforcement
+# --------------------------------
+
+- name: Customer cannot resolve ticket
+  method: PUT
+  path: /tickets/$created_ticket.id/status
+  auth: customer_token
+  body:
+    status: "resolved"
+  expect:
+    status: "403"
+
+- name: Customer cannot assign tickets
+  method: PUT
+  path: /tickets/$created_ticket.id/assign
+  auth: customer_token
+  body:
+    agent_id: "self"
+  expect:
+    status: "403"
+
+# --------------------------------
+# Data Isolation
+# --------------------------------
+
+- name: Customer cannot see others tickets by ID
+  method: GET
+  path: /tickets/99999
+  auth: customer_token
+  expect:
+    status: "404"
